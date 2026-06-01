@@ -12,11 +12,12 @@ type GPX struct {
 }
 
 type Track struct {
-	Name      string        `xml:"name"`
-	Type      string        `xml:"type"`
-	Segment   TrackSeg      `xml:"trkseg"`
-	Distance  float64       `xml:"-"`
-	TotalTime time.Duration `xml:"-"`
+	Name          string        `xml:"name"`
+	Type          string        `xml:"type"`
+	Segment       TrackSeg      `xml:"trkseg"`
+	Distance      float64       `xml:"-"`
+	ActivityTime  time.Duration `xml:"-"`
+	ElevationGain float64       `xml:"-"`
 }
 
 type TrackSeg struct {
@@ -34,4 +35,5 @@ type TrackPoint struct {
 	// Calculated fields
 	TotalDistance float64       `xml:"-"`
 	TotalTime     time.Duration `xml:"-"`
+	TotalElevGain float64       `xml:"-"`
 }
