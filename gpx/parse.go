@@ -20,6 +20,7 @@ func ParseFile(path string) (*GPX, error) {
 		return nil, err
 	}
 
+	//Calculate Activity Statistics
 	err = calcStats(gpx.Track.Segment.TrackPoints)
 	if err != nil {
 		return nil, err
