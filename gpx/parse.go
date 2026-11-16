@@ -26,9 +26,9 @@ func ParseFile(path string) (*GPX, error) {
 		return nil, err
 	}
 	l := len(gpx.Track.Segment.TrackPoints)
-	gpx.Track.Distance = gpx.Track.Segment.TrackPoints[l-1].TotalDistance
-	gpx.Track.ElevationGain = gpx.Track.Segment.TrackPoints[l-1].TotalElevGain
-	gpx.Track.ActivityTime = gpx.Track.Segment.TrackPoints[l-1].TotalTime
+	gpx.Track.Distance = gpx.Track.Segment.TrackPoints[l-1].Distance
+	gpx.Track.ElevationGain = gpx.Track.Segment.TrackPoints[l-1].ElevGain
+	gpx.Track.ActivityTime = gpx.Track.Segment.TrackPoints[l-1].Duration
 
 	return &gpx, nil
 }
@@ -60,9 +60,9 @@ func calcStats(points []TrackPoint) error {
 			}
 		}
 
-		points[i].TotalDistance = totalDistance
-		points[i].TotalElevGain = totalElevation
-		points[i].TotalTime = points[i].Time.Sub(startTime)
+		points[i].Distance = totalDistance
+		points[i].ElevGain = totalElevation
+		points[i].Duration = points[i].Time.Sub(startTime)
 	}
 
 	return nil

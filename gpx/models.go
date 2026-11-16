@@ -33,7 +33,38 @@ type TrackPoint struct {
 	HeartRate *int      `xml:"extensions>TrackPointExtension>hr"`
 
 	// Calculated fields
-	TotalDistance float64       `xml:"-"`
-	TotalTime     time.Duration `xml:"-"`
-	TotalElevGain float64       `xml:"-"`
+	Distance float64       `xml:"-"`
+	Duration time.Duration `xml:"-"`
+	ElevGain float64       `xml:"-"`
+}
+
+type Coordinate struct {
+	Lat float64 `xml:"lat,attr"`
+	Lon float64 `xml:"lon,attr"`
+}
+
+type DistanceSplits struct {
+	Units    string
+	Start    float64
+	Distance float64
+	Partial  bool //"true" includes partials splits at end of activity. A 4.5km activity can return Splits with Distances of 1, 1, 1, 1, and 0.5 <-- Omitted when false
+	Splits   []Split
+}
+
+// Unit is a unit of distance.
+type Unit string
+
+const (
+	Miles      Unit = "mi"
+	Kilometers Unit = "km"
+	Feet       Unit = "ft"
+)
+
+type Split struct {
+	Distance   float64
+	Duration   time.Duration
+	StartPoint Coordinate
+	EndPoint   Coordinate
+	ElevGain   float64
+	HeartRate  *int
 }
