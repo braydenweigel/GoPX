@@ -1,6 +1,8 @@
 package gpx
 
 import (
+	"errors"
+	"io/fs"
 	"testing"
 	"time"
 )
@@ -101,8 +103,8 @@ func TestParseFileInvalidFile(t *testing.T) {
 	file := "testdata/test4.gpx"
 
 	_, err := ParseFile(file)
-	if err.Error() != "expected element type <gpx> but have <goop>" {
-		t.Error("Error: Expected Error")
+	if err == nil || err.Error() != "expected element type <gpx> but have <goop>" {
+		t.Errorf("expected XML element error, got: %v", err)
 	}
 }
 
@@ -111,7 +113,7 @@ func TestParseFileNoFile(t *testing.T) {
 	file := "testdata/file_that_does_not_exist.gpx"
 
 	_, err := ParseFile(file)
-	if err.Error() != "open testdata/file_that_does_not_exist.gpx: no such file or directory" {
-		t.Error("Error: Expected Error")
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("expected file-not-found error, got: %v", err)
 	}
 }
