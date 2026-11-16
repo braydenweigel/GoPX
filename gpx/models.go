@@ -47,7 +47,14 @@ type DistanceSplits struct {
 	Units   Unit    //the units (miles, kilometers, meters) of the split
 	Start   float64 //the point the first split starts from. should match units used. use 0 to start at beginning of activity
 	Length  float64 //the length of the split
-	Partial bool    //"true" includes partials splits at end of activity. A 4.5km activity can return Splits with Distances of 1, 1, 1, 1, and 0.5 <-- Omitted when false. Only matters when splitting an entire activity
+	Partial bool    //"true" includes partials splits at end of activity. A 4.5km activity can return Splits with Distances of 1, 1, 1, 1, and 0.5. Only matters when splitting an entire activity
+	Splits  []Split
+}
+
+type TimeSplits struct {
+	Start   float64 //the time in seconds the first split starts from. use 0 to start at beginning of activity. use 120 to start from 2 minutes
+	Length  float64 //the length of the split in seconds
+	Partial bool    //"true" includes partials splits at end of activity. A 2000 second activity can return Splits with Durations of 600, 600 600, and 200. Only matters when splitting an entire activity
 	Splits  []Split
 }
 

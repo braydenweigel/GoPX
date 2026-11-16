@@ -432,3 +432,201 @@ func TestCalcSplitsDistanceFile(t *testing.T) {
 		t.Errorf("Error: Expected total elevation gain %v, got %v", g.Track.ElevationGain, totalElevGain)
 	}
 }
+
+// Tests CalcSplitsTime() to verify invalid inputs return errors
+func TestCalcSplitsTimeInvalidInputs(t *testing.T) {
+	g := makeTrack(4500, nil) //1350s (22.5min) activity
+
+	tests := []struct {
+		name      string
+		start     float64
+		intervals int
+		length    float64
+		partial   bool
+	}{
+		{"zero length", 0, 1, 0, false},
+		{"NaN length", 0, 1, math.NaN(), false},
+		{"infinite length", 0, 1, math.Inf(1), false},
+		{"NaN start", math.NaN(), 1, 60, false},
+		{"negative length", 0, 1, -60, false},
+		{"negative intervals", 0, -1, 60, false},
+		{"negative start", -1, 1, 60, false},
+		{"start at end of activity", 1350, 0, 60, true},
+		{"start past end of activity", 3600, 0, 60, true},
+		{"too many intervals", 0, 3, 600, false},
+		{"too many intervals with partial", 0, 3, 600, true}, //partial is ignored when intervals > 0
+		{"intervals don't fit after start", 300, 2, 600, false},
+		{"no full interval fits", 0, 0, 3600, false},
+		{"huge interval count", 0, math.MaxInt, 3600, false}, //must not overflow into a passing check
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s, err := g.CalcSplitsTime(tc.start, tc.intervals, tc.length, tc.partial)
+			if err == nil {
+				t.Errorf("Error: Expected error, got %+v", s)
+			}
+			if s != nil {
+				t.Errorf("Error: Expected nil TimeSplits on error, got %+v", s)
+			}
+		})
+	}
+}
+
+// Tests CalcSplitsTime() to verify splitting a whole activity with and without partial
+func TestCalcSplitsTimeWholeActivity(t *testing.T) {
+	g := makeTrack(4500, nil) //1350s activity, 100m every 30s
+
+	s, err := g.CalcSplitsTime(0, 0, 300, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Splits) != 4 {
+		t.Fatalf("Error: Expected %v splits, got %v", 4, len(s.Splits))
+	}
+	for i, split := range s.Splits {
+		if !approxDuration(split.Duration, 5*time.Minute) {
+			t.Errorf("Error: Split %d: Expected duration %v, got %v", i, 5*time.Minute, split.Duration)
+		}
+		if !approxEqual(split.Length, 1000) { //300s at 100m/30s
+			t.Errorf("Error: Split %d: Expected length %v, got %v", i, 1000, split.Length)
+		}
+		if !approxEqual(split.ElevGain, 10) {
+			t.Errorf("Error: Split %d: Expected elevation gain %v, got %v", i, 10, split.ElevGain)
+		}
+	}
+
+	s, err = g.CalcSplitsTime(0, 0, 300, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.Partial {
+		t.Error("Error: Expected Partial to be true")
+	}
+	if len(s.Splits) != 5 {
+		t.Fatalf("Error: Expected %v splits, got %v", 5, len(s.Splits))
+	}
+	last := s.Splits[4]
+	if !approxDuration(last.Duration, 150*time.Second) {
+		t.Errorf("Error: Expected duration %v, got %v", 150*time.Second, last.Duration)
+	}
+	if !approxEqual(last.Length, 500) {
+		t.Errorf("Error: Expected length %v, got %v", 500, last.Length)
+	}
+}
+
+// Tests CalcSplitsTime() to verify partial is ignored when the number of intervals is specified
+func TestCalcSplitsTimePartialIgnored(t *testing.T) {
+	g := makeTrack(4500, nil)
+
+	s, err := g.CalcSplitsTime(0, 2, 300, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Partial {
+		t.Error("Error: Expected Partial to be false")
+	}
+	if len(s.Splits) != 2 {
+		t.Errorf("Error: Expected %v splits, got %v", 2, len(s.Splits))
+	}
+}
+
+// Tests CalcSplitsTime() to verify splits begin at the start time and boundaries between points are interpolated
+func TestCalcSplitsTimeStart(t *testing.T) {
+	g := makeTrack(4500, nil)
+
+	s, err := g.CalcSplitsTime(45, 1, 60, false) //45s-105s = 150m-350m
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	split := s.Splits[0]
+	if !approxEqual(split.StartPoint.Lat, 0.0015) {
+		t.Errorf("Error: Expected start latitude %v, got %v", 0.0015, split.StartPoint.Lat)
+	}
+	if !approxEqual(split.EndPoint.Lat, 0.0035) {
+		t.Errorf("Error: Expected end latitude %v, got %v", 0.0035, split.EndPoint.Lat)
+	}
+	if !approxEqual(split.Length, 200) {
+		t.Errorf("Error: Expected length %v, got %v", 200, split.Length)
+	}
+}
+
+// Tests CalcSplitsTime() to verify heart rate is weighted by time
+func TestCalcSplitsTimeHeartRate(t *testing.T) {
+	g := gpxFromPoints([]TrackPoint{
+		{Distance: 0, Duration: 0, HeartRate: intPtr(100)},
+		{Distance: 1000, Duration: 400 * time.Second, HeartRate: intPtr(200)},
+	})
+
+	s, err := g.CalcSplitsTime(0, 2, 200, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//heart rate rises linearly from 100 to 200, so each half averages its midpoint
+	expected := []int{125, 175}
+	for i, split := range s.Splits {
+		if split.HeartRate == nil || *split.HeartRate != expected[i] {
+			t.Errorf("Error: Split %d: Expected heart rate %v, got %v", i, expected[i], split.HeartRate)
+		}
+	}
+}
+
+// Tests CalcSplitsTime() to verify time spent stopped counts towards the split it happens in
+func TestCalcSplitsTimeStopped(t *testing.T) {
+	g := gpxFromPoints([]TrackPoint{
+		{Distance: 0, Duration: 0},
+		{Distance: 500, Duration: 100 * time.Second},
+		{Distance: 500, Duration: 400 * time.Second}, //stopped for 300s
+		{Distance: 1000, Duration: 500 * time.Second},
+	})
+
+	s, err := g.CalcSplitsTime(0, 0, 250, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//0-250s: 500m (all of the moving) then stopped. 250-500s: stopped until 400s, then 500m
+	expected := []float64{500, 500}
+	for i, split := range s.Splits {
+		if !approxEqual(split.Length, expected[i]) {
+			t.Errorf("Error: Split %d: Expected length %v, got %v", i, expected[i], split.Length)
+		}
+	}
+}
+
+// Tests CalcSplitsTime() on a real activity to verify the splits add up to the whole activity
+func TestCalcSplitsTimeFile(t *testing.T) {
+	g, err := ParseFile("testdata/test1.gpx") //1644s
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := g.CalcSplitsTime(0, 0, 300, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(s.Splits) != 6 { //5 full splits + 1 partial (144s)
+		t.Fatalf("Error: Expected %v splits, got %v", 6, len(s.Splits))
+	}
+
+	var totalLength, totalElevGain float64
+	var totalDuration time.Duration
+	for _, split := range s.Splits {
+		totalLength += split.Length
+		totalDuration += split.Duration
+		totalElevGain += split.ElevGain
+	}
+
+	if !approxEqual(totalLength, g.Track.Distance) {
+		t.Errorf("Error: Expected total length %v, got %v", g.Track.Distance, totalLength)
+	}
+	if !approxDuration(totalDuration, g.Track.ActivityTime) {
+		t.Errorf("Error: Expected total duration %v, got %v", g.Track.ActivityTime, totalDuration)
+	}
+	if !approxEqual(totalElevGain, g.Track.ElevationGain) {
+		t.Errorf("Error: Expected total elevation gain %v, got %v", g.Track.ElevationGain, totalElevGain)
+	}
+}
