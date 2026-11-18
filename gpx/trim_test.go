@@ -412,3 +412,20 @@ func TestTrimNetElev(t *testing.T) {
 		t.Errorf("Error: Expected net elevation %v, got %v", 20, trimmed.Track.NetElev)
 	}
 }
+
+// Tests TrimTime() to verify the average heart rate is recalculated for the trimmed activity
+func TestTrimHeartRate(t *testing.T) {
+	g := gpxFromPoints([]TrackPoint{
+		{Distance: 0, Duration: 0, HeartRate: intPtr(100)},
+		{Distance: 1000, Duration: 300 * time.Second, HeartRate: intPtr(100)},
+		{Distance: 2000, Duration: 600 * time.Second, HeartRate: intPtr(200)},
+	})
+
+	trimmed, err := g.TrimTime(300, 0) //keeps only the 100->200bpm half
+	if err != nil {
+		t.Fatal(err)
+	}
+	if trimmed.Track.HeartRate == nil || *trimmed.Track.HeartRate != 150 {
+		t.Errorf("Error: Expected heart rate %v, got %v", 150, trimmed.Track.HeartRate)
+	}
+}

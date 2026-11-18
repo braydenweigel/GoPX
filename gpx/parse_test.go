@@ -57,6 +57,11 @@ func TestParseFile(t *testing.T) {
 		t.Errorf("Error: Expected %v, got %v", 0.3, gpx.Track.NetElev)
 	}
 
+	//Test GPX Track Average Heart Rate
+	if gpx.Track.HeartRate == nil || *gpx.Track.HeartRate != 175 {
+		t.Errorf("Error: Expected %v, got %v", 175, gpx.Track.HeartRate)
+	}
+
 	//Test GPX Track Segment Length
 	if len(gpx.Track.Segment.TrackPoints) != 1644 {
 		t.Errorf("Error: Expected %v, got %v", 1644, len(gpx.Track.Segment.TrackPoints))
@@ -121,5 +126,51 @@ func TestParseFileNoFile(t *testing.T) {
 	_, err := ParseFile(file)
 	if !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("expected file-not-found error, got: %v", err)
+	}
+}
+
+// Tests calcStats() to verify the average heart rate is weighted by time, not by number of points
+func TestCalcStatsHeartRate(t *testing.T) {
+	start := time.Date(2026, 3, 15, 16, 0, 0, 0, time.UTC)
+	track := Track{Segment: TrackSeg{TrackPoints: []TrackPoint{
+		{Time: start, HeartRate: intPtr(100)},
+		{Time: start.Add(100 * time.Second), HeartRate: intPtr(100)},
+		{Time: start.Add(400 * time.Second), HeartRate: intPtr(200)},
+	}}}
+
+	if err := calcStats(&track); err != nil {
+		t.Fatal(err)
+	}
+
+	//100bpm for 100s, then 100->200bpm (avg 150) for 300s: (100*100 + 150*300) / 400 = 137.5
+	//a plain average of the points would be (100+100+200) / 3 = 133
+	if track.HeartRate == nil || *track.HeartRate != 138 {
+		t.Errorf("Error: Expected heart rate %v, got %v", 138, track.HeartRate)
+	}
+}
+
+// Tests calcStats() to verify the average heart rate is nil without heart rate data, and uses the reading for a single point
+func TestCalcStatsHeartRateEdgeCases(t *testing.T) {
+	start := time.Date(2026, 3, 15, 16, 0, 0, 0, time.UTC)
+
+	track := Track{Segment: TrackSeg{TrackPoints: []TrackPoint{
+		{Time: start},
+		{Time: start.Add(100 * time.Second)},
+	}}}
+	if err := calcStats(&track); err != nil {
+		t.Fatal(err)
+	}
+	if track.HeartRate != nil {
+		t.Errorf("Error: Expected nil heart rate, got %v", *track.HeartRate)
+	}
+
+	track = Track{Segment: TrackSeg{TrackPoints: []TrackPoint{
+		{Time: start, HeartRate: intPtr(150)},
+	}}}
+	if err := calcStats(&track); err != nil {
+		t.Fatal(err)
+	}
+	if track.HeartRate == nil || *track.HeartRate != 150 {
+		t.Errorf("Error: Expected heart rate %v, got %v", 150, track.HeartRate)
 	}
 }

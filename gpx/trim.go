@@ -95,6 +95,7 @@ func (g GPX) trim(key func(TrackPoint) float64, v0, v1 float64) (*GPX, error) {
 	trimmed.Track.ActivityTime = last.Duration
 	trimmed.Track.ElevationGain = last.ElevGain
 	trimmed.Track.NetElev = last.Elevation - points[0].Elevation
+	trimmed.Track.HeartRate = trackHeartRate(points)
 
 	//move the start time forward by the time trimmed off. left alone if the file had no start time
 	if !g.StartTime.IsZero() {

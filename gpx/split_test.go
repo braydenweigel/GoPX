@@ -35,6 +35,7 @@ func gpxFromPoints(points []TrackPoint) GPX {
 	g.Track.ActivityTime = last.Duration
 	g.Track.ElevationGain = last.ElevGain
 	g.Track.NetElev = last.Elevation - points[0].Elevation
+	g.Track.HeartRate = trackHeartRate(points)
 	return g
 }
 

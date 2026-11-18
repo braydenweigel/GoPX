@@ -19,6 +19,7 @@ type Track struct {
 	ActivityTime  time.Duration `xml:"-"`
 	ElevationGain float64       `xml:"-"`
 	NetElev       float64       `xml:"-"`
+	HeartRate     *int          `xml:"-"` //time-weighted average heart rate. nil if the activity has no heart rate data
 }
 
 type TrackSeg struct {

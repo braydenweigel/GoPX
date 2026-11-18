@@ -70,8 +70,25 @@ func calcStats(track *Track) error {
 	track.ElevationGain = last.ElevGain
 	track.ActivityTime = last.Duration
 	track.NetElev = last.Elevation - first.Elevation //net elevation change from start to end
+	track.HeartRate = trackHeartRate(points)
 
 	return nil
+}
+
+// trackHeartRate returns the time-weighted average heart rate of the whole activity,
+// or nil if no points have heart rate data. Calculated the same way as each split's heart rate.
+func trackHeartRate(points []TrackPoint) *int {
+	//a single point covers no time, so its reading is the average
+	if len(points) == 1 {
+		if points[0].HeartRate == nil {
+			return nil
+		}
+		hr := *points[0].HeartRate
+		return &hr
+	}
+
+	seg := 0
+	return avgHeartRate(points, byTime, 0, points[len(points)-1].Duration.Seconds(), true, &seg)
 }
 
 func haversine(lat1, lon1, lat2, lon2 float64) float64 {
