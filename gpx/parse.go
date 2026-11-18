@@ -21,19 +21,18 @@ func ParseFile(path string) (*GPX, error) {
 	}
 
 	//Calculate Activity Statistics
-	err = calcStats(gpx.Track.Segment.TrackPoints)
+	err = calcStats(&gpx.Track)
 	if err != nil {
 		return nil, err
 	}
-	l := len(gpx.Track.Segment.TrackPoints)
-	gpx.Track.Distance = gpx.Track.Segment.TrackPoints[l-1].Distance
-	gpx.Track.ElevationGain = gpx.Track.Segment.TrackPoints[l-1].ElevGain
-	gpx.Track.ActivityTime = gpx.Track.Segment.TrackPoints[l-1].Duration
 
 	return &gpx, nil
 }
 
-func calcStats(points []TrackPoint) error {
+// calcStats fills in the calculated fields of each track point (running totals from the start)
+// and the track's totals.
+func calcStats(track *Track) error {
+	points := track.Segment.TrackPoints
 	if len(points) == 0 {
 		return errors.New("No Data")
 	}
@@ -64,6 +63,13 @@ func calcStats(points []TrackPoint) error {
 		points[i].ElevGain = totalElevation
 		points[i].Duration = points[i].Time.Sub(startTime)
 	}
+
+	//track totals
+	first, last := points[0], points[len(points)-1]
+	track.Distance = last.Distance
+	track.ElevationGain = last.ElevGain
+	track.ActivityTime = last.Duration
+	track.NetElev = last.Elevation - first.Elevation //net elevation change from start to end
 
 	return nil
 }

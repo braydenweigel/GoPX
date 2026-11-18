@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// makeTrack builds a GPX with one point every 100m, 30s apart, gaining 1m of elevation per point.
+// makeTrack builds a GPX with one point every 100m, 30s apart, climbing 1m of elevation per point.
 // hr is the heart rate given to every point (nil for no heart rate data).
 // The calculated fields are set directly so tests don't depend on ParseFile() or haversine().
 func makeTrack(meters float64, hr *int) GPX {
@@ -20,6 +20,7 @@ func makeTrack(meters float64, hr *int) GPX {
 			Distance:  d,
 			Duration:  time.Duration(i*30) * time.Second,
 			ElevGain:  i,
+			Elevation: i, //climbs steadily, so net elevation change matches elevation gain
 		})
 	}
 	return gpxFromPoints(points)
@@ -33,6 +34,7 @@ func gpxFromPoints(points []TrackPoint) GPX {
 	g.Track.Distance = last.Distance
 	g.Track.ActivityTime = last.Duration
 	g.Track.ElevationGain = last.ElevGain
+	g.Track.NetElev = last.Elevation - points[0].Elevation
 	return g
 }
 
@@ -628,5 +630,38 @@ func TestCalcSplitsTimeFile(t *testing.T) {
 	}
 	if !approxEqual(totalElevGain, g.Track.ElevationGain) {
 		t.Errorf("Error: Expected total elevation gain %v, got %v", g.Track.ElevationGain, totalElevGain)
+	}
+}
+
+// Tests CalcSplitsDistance() and CalcSplitsTime() to verify net elevation change, including a split that descends
+func TestCalcSplitsNetElev(t *testing.T) {
+	//up 20m over the first 1km, then down 30m over the second 1km
+	g := gpxFromPoints([]TrackPoint{
+		{Distance: 0, Duration: 0, Elevation: 100, ElevGain: 0},
+		{Distance: 500, Duration: 150 * time.Second, Elevation: 110, ElevGain: 10},
+		{Distance: 1000, Duration: 300 * time.Second, Elevation: 120, ElevGain: 20},
+		{Distance: 2000, Duration: 600 * time.Second, Elevation: 90, ElevGain: 20},
+	})
+
+	s, err := g.CalcSplitsDistance(Kilometers, 0.25, 0, 1, true) //250m-1250m, 1250m-2000m
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []float64{7.5, -22.5} //105 at 250m -> 112.5 at 1250m -> 90 at 2000m
+	for i, split := range s.Splits {
+		if !approxEqual(split.NetElev, expected[i]) {
+			t.Errorf("Error: Split %d: Expected net elevation %v, got %v", i, expected[i], split.NetElev)
+		}
+	}
+
+	ts, err := g.CalcSplitsTime(0, 2, 300, false) //0-300s, 300-600s
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected = []float64{20, -30}
+	for i, split := range ts.Splits {
+		if !approxEqual(split.NetElev, expected[i]) {
+			t.Errorf("Error: Split %d: Expected net elevation %v, got %v", i, expected[i], split.NetElev)
+		}
 	}
 }

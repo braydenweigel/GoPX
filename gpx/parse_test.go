@@ -3,6 +3,7 @@ package gpx
 import (
 	"errors"
 	"io/fs"
+	"math"
 	"testing"
 	"time"
 )
@@ -49,6 +50,11 @@ func TestParseFile(t *testing.T) {
 	//Test GPX Track Elevation Gain
 	if gpx.Track.ElevationGain != 13.3 {
 		t.Errorf("Error: Expected %v, got %v", 13.3, gpx.Track.ElevationGain)
+	}
+
+	//Test GPX Track Net Elevation Change (9.8m at the end - 9.5m at the start)
+	if math.Abs(gpx.Track.NetElev-0.3) > 1e-9 {
+		t.Errorf("Error: Expected %v, got %v", 0.3, gpx.Track.NetElev)
 	}
 
 	//Test GPX Track Segment Length

@@ -18,6 +18,7 @@ type Track struct {
 	Distance      float64       `xml:"-"`
 	ActivityTime  time.Duration `xml:"-"`
 	ElevationGain float64       `xml:"-"`
+	NetElev       float64       `xml:"-"`
 }
 
 type TrackSeg struct {
@@ -73,5 +74,6 @@ type Split struct {
 	StartPoint Coordinate    //coordinates at the beginning of the split
 	EndPoint   Coordinate    //coordinates at the end of the split
 	ElevGain   float64       //elevation gain of the split
+	NetElev    float64       //change in elevation between start and end points
 	HeartRate  *int          //average heart rate of the split
 }

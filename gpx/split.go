@@ -96,6 +96,7 @@ func (g GPX) CalcSplitsDistance(units Unit, start float64, intervals int, length
 			StartPoint: startPos.coord,
 			EndPoint:   endPos.coord,
 			ElevGain:   endPos.elevGain - startPos.elevGain,
+			NetElev:    endPos.elevation - startPos.elevation,
 			HeartRate:  heartRate,
 		})
 
@@ -187,6 +188,7 @@ func (g GPX) CalcSplitsTime(start float64, intervals int, length float64, partia
 			StartPoint: startPos.coord,
 			EndPoint:   endPos.coord,
 			ElevGain:   endPos.elevGain - startPos.elevGain,
+			NetElev:    endPos.elevation - startPos.elevation,
 			HeartRate:  heartRate,
 		})
 
@@ -272,10 +274,11 @@ func avgHeartRate(points []TrackPoint, key func(TrackPoint) float64, v0, v1 floa
 
 // position is the interpolated state of the activity at a given distance or time.
 type position struct {
-	coord    Coordinate
-	distance float64       //meters since the start of the activity
-	duration time.Duration //time since the start of the activity
-	elevGain float64       //elevation gain since the start of the activity
+	coord     Coordinate
+	distance  float64       //meters since the start of the activity
+	duration  time.Duration //time since the start of the activity
+	elevGain  float64       //elevation gain since the start of the activity
+	elevation float64       //elevation at this point
 }
 
 // positionAt linearly interpolates between the two track points on either side of v,
@@ -285,7 +288,7 @@ type position struct {
 func positionAt(points []TrackPoint, key func(TrackPoint) float64, v float64, seg *int) position {
 	if len(points) == 1 {
 		p := points[0]
-		return position{Coordinate{p.Lat, p.Lon}, p.Distance, p.Duration, p.ElevGain}
+		return position{Coordinate{p.Lat, p.Lon}, p.Distance, p.Duration, p.ElevGain, p.Elevation}
 	}
 
 	//find the segment points[seg] -> points[seg+1] that contains v
@@ -306,9 +309,10 @@ func positionAt(points []TrackPoint, key func(TrackPoint) float64, v float64, se
 			Lat: a.Lat + t*(b.Lat-a.Lat),
 			Lon: a.Lon + t*(b.Lon-a.Lon),
 		},
-		distance: a.Distance + t*(b.Distance-a.Distance),
-		duration: a.Duration + time.Duration(t*float64(b.Duration-a.Duration)),
-		elevGain: a.ElevGain + t*(b.ElevGain-a.ElevGain),
+		distance:  a.Distance + t*(b.Distance-a.Distance),
+		duration:  a.Duration + time.Duration(t*float64(b.Duration-a.Duration)),
+		elevGain:  a.ElevGain + t*(b.ElevGain-a.ElevGain),
+		elevation: a.Elevation + t*(b.Elevation-a.Elevation),
 	}
 }
 

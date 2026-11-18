@@ -387,3 +387,28 @@ func TestTrimTimeFile(t *testing.T) {
 		t.Errorf("Error: Expected distance less than %v, got %v", g.Track.Distance, trimmed.Track.Distance)
 	}
 }
+
+// Tests TrimDistance() and TrimTime() to verify net elevation change is recalculated from the new end points
+func TestTrimNetElev(t *testing.T) {
+	g := gpxFromPoints([]TrackPoint{
+		{Distance: 0, Duration: 0, Elevation: 100},
+		{Distance: 1000, Duration: 300 * time.Second, Elevation: 120},
+		{Distance: 2000, Duration: 600 * time.Second, Elevation: 90},
+	})
+
+	trimmed, err := g.TrimDistance(Kilometers, 0.5, 0) //starts at 110m elevation
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !approxEqual(trimmed.Track.NetElev, -20) {
+		t.Errorf("Error: Expected net elevation %v, got %v", -20, trimmed.Track.NetElev)
+	}
+
+	trimmed, err = g.TrimTime(0, 300) //ends at 120m elevation
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !approxEqual(trimmed.Track.NetElev, 20) {
+		t.Errorf("Error: Expected net elevation %v, got %v", 20, trimmed.Track.NetElev)
+	}
+}
