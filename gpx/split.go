@@ -6,6 +6,18 @@ import (
 	"time"
 )
 
+// CalcSplitsDistance divides the activity into splits of length distance, in units
+// (for example 1km or 1mi splits). start, also in units, is where the first split begins.
+//
+// intervals is the number of splits. Every split must fit completely: 5 × 1km splits
+// need at least 5km of activity after start. Use 0 for as many full splits as fit.
+//
+// partial only applies when intervals is 0. When true, the distance left over after the
+// last full split is added as a final, shorter split, so a 4.5km activity gives
+// 1, 1, 1, 1, and 0.5km splits instead of four 1km splits.
+//
+// It returns an error if units isn't supported, length isn't positive, intervals is
+// negative, start isn't within the activity, or the requested splits don't fit.
 func (g GPX) CalcSplitsDistance(units Unit, start float64, intervals int, length float64, partial bool) (*DistanceSplits, error) {
 	//check for errors
 
@@ -106,7 +118,17 @@ func (g GPX) CalcSplitsDistance(units Unit, start float64, intervals int, length
 	return &s, nil
 }
 
-// start and length are in seconds
+// CalcSplitsTime divides the activity into splits of length seconds (for example 600 for
+// 10 minute splits). start is the time in seconds where the first split begins.
+//
+// intervals and partial work the same as in [GPX.CalcSplitsDistance]: every split must fit
+// completely, 0 intervals means as many full splits as fit, and partial adds the time left
+// over as a final, shorter split when intervals is 0.
+//
+// Each [Split.Length] is the distance covered in meters.
+//
+// It returns an error if length isn't positive, intervals is negative, start isn't
+// within the activity, or the requested splits don't fit.
 func (g GPX) CalcSplitsTime(start float64, intervals int, length float64, partial bool) (*TimeSplits, error) {
 	//check for errors
 

@@ -7,6 +7,11 @@ import (
 	"os"
 )
 
+// ParseFile reads the GPX file at path and calculates the activity's statistics: each point's
+// running totals and the track's distance, time, elevation gain, net elevation change, and
+// average heart rate.
+//
+// It returns an error if the file can't be read, isn't valid GPX, or has no track points.
 func ParseFile(path string) (*GPX, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
